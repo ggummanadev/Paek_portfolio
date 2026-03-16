@@ -4,9 +4,15 @@ import { collection, query, orderBy, onSnapshot, addDoc, deleteDoc, doc, serverT
 import { useAuthState } from 'react-firebase-hooks/auth';
 import Editor from '../components/Editor';
 import AuthGuard from '../components/AuthGuard';
-import { Plus, Trash2, BookOpen, ChevronRight, FileText } from 'lucide-react';
+import { Plus, Trash2, BookOpen, ChevronRight, FileText, X } from 'lucide-react';
 import { Curriculum } from '../types';
 import { format } from 'date-fns';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 export default function CurriculumPage() {
   const [user] = useAuthState(auth);
@@ -15,6 +21,18 @@ export default function CurriculumPage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
+  const [selectedItem, setSelectedItem] = useState<Curriculum | null>(null);
+
+  useEffect(() => {
+    if (selectedItem) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [selectedItem]);
 
   useEffect(() => {
     const q = query(collection(db, 'curriculums'), orderBy('createdAt', 'desc'));
@@ -134,11 +152,15 @@ export default function CurriculumPage() {
                   </AuthGuard>
                 </div>
                 <div 
-                  className="prose prose-slate max-w-none line-clamp-3"
+                  className="prose prose-slate max-w-none line-clamp-3 cursor-pointer"
+                  onClick={() => setSelectedItem(item)}
                   dangerouslySetInnerHTML={{ __html: item.content }}
                 />
                 <div className="mt-6 flex justify-end">
-                  <button className="flex items-center gap-1 text-sm font-semibold text-indigo-600 hover:text-indigo-700">
+                  <button 
+                    onClick={() => setSelectedItem(item)}
+                    className="flex items-center gap-1 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+                  >
                     상세보기 <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
@@ -147,6 +169,56 @@ export default function CurriculumPage() {
           ))
         )}
       </div>
+
+      {/* Curriculum Detail Modal */}
+      {selectedItem && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+          <div 
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            onClick={() => setSelectedItem(null)}
+          />
+          <div className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-50 rounded-lg">
+                  <FileText className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">{selectedItem.title}</h3>
+                  <p className="text-xs text-slate-400">
+                    {selectedItem.createdAt?.toDate ? format(selectedItem.createdAt.toDate(), 'yyyy.MM.dd HH:mm') : '방금 전'}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedItem(null)}
+                className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-y-auto px-8 py-10">
+              <div 
+                className="prose prose-slate prose-lg max-w-none"
+                dangerouslySetInnerHTML={{ __html: selectedItem.content }}
+              />
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-8 py-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+              <button 
+                onClick={() => setSelectedItem(null)}
+                className="px-6 py-2 bg-slate-900 text-white rounded-xl text-sm font-medium hover:bg-slate-800 transition-colors"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
