@@ -1,0 +1,81 @@
+{
+  "entities": {
+    "Profile": {
+      "title": "Instructor Profile",
+      "description": "Instructor biography and details",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "specialty": { "type": "string" },
+        "experience": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "content": { "type": "string", "description": "HTML content of the bio" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "authorUid": { "type": "string" }
+      },
+      "required": ["content", "updatedAt", "authorUid"]
+    },
+    "Curriculum": {
+      "title": "AI Curriculum",
+      "description": "Details about AI courses",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "content": { "type": "string", "description": "HTML content" },
+        "attachments": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "authorUid": { "type": "string" }
+      },
+      "required": ["title", "content", "createdAt", "authorUid"]
+    },
+    "Lecture": {
+      "title": "Past Lecture",
+      "description": "Records of past lectures",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "content": { "type": "string", "description": "HTML content" },
+        "date": { "type": "string", "format": "date" },
+        "attachments": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "authorUid": { "type": "string" }
+      },
+      "required": ["title", "content", "date", "createdAt", "authorUid"]
+    },
+    "Article": {
+      "title": "Novel or Column",
+      "description": "Creative writing or professional columns",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "content": { "type": "string", "description": "HTML content" },
+        "type": { "type": "string", "enum": ["novel", "column"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "authorUid": { "type": "string" }
+      },
+      "required": ["title", "content", "type", "createdAt", "authorUid"]
+    },
+    "SharedLink": {
+      "title": "Shared Resource",
+      "description": "YouTube or news articles shared via mobile",
+      "type": "object",
+      "properties": {
+        "url": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "thumbnail": { "type": "string" },
+        "type": { "type": "string", "enum": ["youtube", "article"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "authorUid": { "type": "string" }
+      },
+      "required": ["url", "createdAt", "authorUid"]
+    }
+  },
+  "firestore": {
+    "/profiles/{profileId}": { "schema": "Profile", "description": "Instructor profile documents" },
+    "/curriculums/{curriculumId}": { "schema": "Curriculum", "description": "AI curriculum items" },
+    "/lectures/{lectureId}": { "schema": "Lecture", "description": "Past lecture records" },
+    "/articles/{articleId}": { "schema": "Article", "description": "Novels and columns" },
+    "/sharedLinks/{linkId}": { "schema": "SharedLink", "description": "Shared YouTube/Article links" }
+  }
+}
