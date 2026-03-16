@@ -24,17 +24,27 @@ export default function ArticlesPage() {
   const [filter, setFilter] = useState<'all' | 'novel' | 'column'>('all');
   const [loading, setLoading] = useState(true);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editContent, setEditContent] = useState('');
+  const [editType, setEditType] = useState<'novel' | 'column'>('column');
 
   useEffect(() => {
     if (selectedArticle) {
       document.body.style.overflow = 'hidden';
+      if (!isEditing) {
+        setEditTitle(selectedArticle.title);
+        setEditContent(selectedArticle.content);
+        setEditType(selectedArticle.type);
+      }
     } else {
       document.body.style.overflow = 'unset';
+      setIsEditing(false);
     }
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [selectedArticle]);
+  }, [selectedArticle, isEditing]);
 
   useEffect(() => {
     const q = query(collection(db, 'articles'), orderBy('createdAt', 'desc'));
@@ -70,8 +80,31 @@ export default function ArticlesPage() {
     if (!window.confirm('정말 삭제하시겠습니까?')) return;
     try {
       await deleteDoc(doc(db, 'articles', id));
+      if (selectedArticle?.id === id) setSelectedArticle(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `articles/${id}`);
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!selectedArticle?.id || !editTitle || !editContent) return;
+    try {
+      const { updateDoc } = await import('firebase/firestore');
+      await updateDoc(doc(db, 'articles', selectedArticle.id), {
+        title: editTitle,
+        content: editContent,
+        type: editType,
+        updatedAt: serverTimestamp()
+      });
+      setIsEditing(false);
+      setSelectedArticle({
+        ...selectedArticle,
+        title: editTitle,
+        content: editContent,
+        type: editType
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `articles/${selectedArticle.id}`);
     }
   };
 
@@ -240,17 +273,69 @@ export default function ArticlesPage() {
 
             {/* Modal Content */}
             <div className="flex-1 overflow-y-auto px-8 py-10">
-              <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-8">
-                {selectedArticle.title}
-              </h2>
-              <div 
-                className="prose prose-slate prose-lg max-w-none"
-                dangerouslySetInnerHTML={{ __html: selectedArticle.content }}
-              />
+              {isEditing ? (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input
+                      type="text"
+                      placeholder="글 제목"
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <select
+                      value={editType}
+                      onChange={(e) => setEditType(e.target.value as 'novel' | 'column')}
+                      className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="column">칼럼</option>
+                      <option value="novel">소설</option>
+                    </select>
+                  </div>
+                  <Editor value={editContent} onChange={setEditContent} placeholder="글 내용을 작성해주세요..." />
+                </div>
+              ) : (
+                <>
+                  <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-8">
+                    {selectedArticle.title}
+                  </h2>
+                  <div 
+                    className="prose prose-slate prose-lg max-w-none"
+                    dangerouslySetInnerHTML={{ __html: selectedArticle.content }}
+                  />
+                </>
+              )}
             </div>
 
             {/* Modal Footer */}
-            <div className="px-8 py-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+            <div className="px-8 py-4 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
+              <AuthGuard>
+                <div className="flex gap-2">
+                  {isEditing ? (
+                    <>
+                      <button 
+                        onClick={handleUpdate}
+                        className="px-6 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors"
+                      >
+                        저장하기
+                      </button>
+                      <button 
+                        onClick={() => setIsEditing(false)}
+                        className="px-6 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors"
+                      >
+                        취소
+                      </button>
+                    </>
+                  ) : (
+                    <button 
+                      onClick={() => setIsEditing(true)}
+                      className="px-6 py-2 bg-white border border-slate-200 text-slate-900 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors"
+                    >
+                      수정하기
+                    </button>
+                  )}
+                </div>
+              </AuthGuard>
               <button 
                 onClick={() => setSelectedArticle(null)}
                 className="px-6 py-2 bg-slate-900 text-white rounded-xl text-sm font-medium hover:bg-slate-800 transition-colors"
