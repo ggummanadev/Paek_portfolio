@@ -5,6 +5,7 @@ import CurriculumPage from './pages/Curriculum';
 import LecturesPage from './pages/Lectures';
 import ArticlesPage from './pages/Articles';
 import SharedPage from './pages/Shared';
+import PortfolioPage from './pages/Portfolio';
 import { ErrorBoundary } from 'react-error-boundary';
 
 function ErrorFallback({ error }: { error: Error }) {
@@ -38,6 +39,7 @@ export default function App() {
             <Route path="/lectures" element={<LecturesPage />} />
             <Route path="/articles" element={<ArticlesPage />} />
             <Route path="/shared" element={<SharedPage />} />
+            <Route path="/portfolio" element={<PortfolioPage />} />
           </Routes>
         </Layout>
       </Router>

@@ -47,3 +47,14 @@ export interface SharedLink {
   createdAt: any;
   authorUid: string;
 }
+
+export interface PortfolioItem {
+  id?: string;
+  title: string;
+  description: string;
+  url: string;
+  thumbnail?: string;
+  type: 'webapp' | 'googleplay' | 'youtube' | 'website';
+  createdAt: any;
+  authorUid: string;
+}

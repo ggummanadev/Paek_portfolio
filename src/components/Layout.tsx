@@ -12,7 +12,8 @@ import {
   LogIn,
   Menu,
   X,
-  Cpu
+  Cpu,
+  Layout as LayoutIcon
 } from 'lucide-react';
 import { useState, ReactNode } from 'react';
 import { clsx, type ClassValue } from 'clsx';
@@ -35,6 +36,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     { name: '강의 이력(Lectures)', path: '/lectures', icon: History },
     { name: '소설 & 칼럼(Articles)', path: '/articles', icon: PenTool },
     { name: '공유 자료(Shared)', path: '/shared', icon: Share2 },
+    { name: '작품 소개(Portfolio)', path: '/portfolio', icon: LayoutIcon },
   ];
 
   const handleLogin = async () => {

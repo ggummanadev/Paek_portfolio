@@ -69,6 +69,21 @@
         "authorUid": { "type": "string" }
       },
       "required": ["url", "createdAt", "authorUid"]
+    },
+    "PortfolioItem": {
+      "title": "Portfolio Item",
+      "description": "Showcase of created apps, websites, and playlists",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "url": { "type": "string" },
+        "thumbnail": { "type": "string" },
+        "type": { "type": "string", "enum": ["webapp", "googleplay", "youtube", "website"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "authorUid": { "type": "string" }
+      },
+      "required": ["title", "url", "type", "createdAt", "authorUid"]
     }
   },
   "firestore": {
@@ -76,6 +91,7 @@
     "/curriculums/{curriculumId}": { "schema": "Curriculum", "description": "AI curriculum items" },
     "/lectures/{lectureId}": { "schema": "Lecture", "description": "Past lecture records" },
     "/articles/{articleId}": { "schema": "Article", "description": "Novels and columns" },
-    "/sharedLinks/{linkId}": { "schema": "SharedLink", "description": "Shared YouTube/Article links" }
+    "/sharedLinks/{linkId}": { "schema": "SharedLink", "description": "Shared YouTube/Article links" },
+    "/portfolio/{itemId}": { "schema": "PortfolioItem", "description": "Portfolio items showcase" }
   }
 }
