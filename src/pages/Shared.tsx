@@ -31,15 +31,34 @@ export default function SharedPage() {
   const handleAdd = async () => {
     if (!user || !url) return;
     try {
-      // Simple logic to detect type if not specified
       let detectedType = type;
-      if (url.includes('youtube.com') || url.includes('youtu.be')) {
+      let thumbnail = '';
+      let finalTitle = title;
+
+      // YouTube detection and thumbnail
+      const ytMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([^& \n<]+)/);
+      if (ytMatch) {
         detectedType = 'youtube';
+        const videoId = ytMatch[1];
+        thumbnail = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+      } else if (detectedType === 'article') {
+        // For articles, we try to fetch metadata using a public API
+        try {
+          const res = await fetch(`https://api.microlink.io?url=${encodeURIComponent(url)}`);
+          const data = await res.json();
+          if (data.status === 'success') {
+            if (!finalTitle) finalTitle = data.data.title;
+            thumbnail = data.data.image?.url || data.data.logo?.url || '';
+          }
+        } catch (e) {
+          console.error('Metadata fetch failed', e);
+        }
       }
 
       await addDoc(collection(db, 'sharedLinks'), {
         url,
-        title: title || url,
+        title: finalTitle || url,
+        thumbnail,
         type: detectedType,
         createdAt: serverTimestamp(),
         authorUid: user.uid
@@ -133,8 +152,20 @@ export default function SharedPage() {
         ) : (
           links.map((item) => (
             <div key={item.id} className="group bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg transition-all flex flex-col">
-              <div className="aspect-video bg-slate-100 flex items-center justify-center relative overflow-hidden">
-                {item.type === 'youtube' ? (
+              <a 
+                href={item.url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="aspect-video bg-slate-100 flex items-center justify-center relative overflow-hidden block"
+              >
+                {item.thumbnail ? (
+                  <img 
+                    src={item.thumbnail} 
+                    alt={item.title}
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                ) : item.type === 'youtube' ? (
                   <div className="absolute inset-0 flex items-center justify-center bg-red-50">
                     <Youtube className="w-12 h-12 text-red-600" />
                   </div>
@@ -143,7 +174,12 @@ export default function SharedPage() {
                     <Globe className="w-12 h-12 text-indigo-600" />
                   </div>
                 )}
-              </div>
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all transform scale-90 group-hover:scale-100">
+                    <ExternalLink className="w-5 h-5 text-slate-900" />
+                  </div>
+                </div>
+              </a>
               <div className="p-5 flex-1 flex flex-col">
                 <div className="flex justify-between items-start mb-2">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
@@ -151,7 +187,10 @@ export default function SharedPage() {
                   </span>
                   <AuthGuard>
                     <button
-                      onClick={() => item.id && handleDelete(item.id)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        item.id && handleDelete(item.id);
+                      }}
                       className="p-1 text-slate-300 hover:text-red-600 transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -159,7 +198,14 @@ export default function SharedPage() {
                   </AuthGuard>
                 </div>
                 <h3 className="text-lg font-bold text-slate-900 mb-4 line-clamp-2 flex-1">
-                  {item.title}
+                  <a 
+                    href={item.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="hover:text-indigo-600 transition-colors"
+                  >
+                    {item.title}
+                  </a>
                 </h3>
                 <div className="flex justify-between items-center mt-auto pt-4 border-t border-slate-50">
                   <span className="text-xs text-slate-400">
