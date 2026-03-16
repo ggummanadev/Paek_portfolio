@@ -70,7 +70,7 @@ export default function Home() {
       <div className="flex justify-between items-end border-b border-slate-200 pb-6">
         <div>
           <h1 className="text-4xl font-bold tracking-tight text-slate-900">강사 소개(Instructor Profile)</h1>
-          <p className="mt-2 text-slate-500">20년 경력의 온라인 웹사이트 디자인 및 개발 전문가</p>
+          <p className="mt-2 text-slate-500">PBL방식 AI,SW,Sci 교육 전문가</p>
         </div>
         <AuthGuard>
           {!isEditing ? (
