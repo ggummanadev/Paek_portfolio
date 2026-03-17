@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { db, auth, handleFirestoreError, OperationType } from '../firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import Editor from '../components/Editor';
 import AuthGuard from '../components/AuthGuard';
-import { Plus, Trash2, BookOpen, ChevronRight, FileText, X } from 'lucide-react';
+import { Plus, Trash2, BookOpen, ChevronRight, FileText, X, Edit2, Save } from 'lucide-react';
 import { Curriculum } from '../types';
 import { format } from 'date-fns';
 import { clsx, type ClassValue } from 'clsx';
@@ -22,17 +22,37 @@ export default function CurriculumPage() {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<Curriculum | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editContent, setEditContent] = useState('');
+
+  const isAdmin = user?.email === 'jabang78@gmail.com';
+
+  const checkContentSize = (content: string) => {
+    const size = new Blob([content]).size;
+    const limit = 1048576; // 1MB
+    if (size > limit) {
+      alert(`내용이 너무 큽니다. (현재: ${(size / 1024 / 1024).toFixed(2)}MB / 제한: 1MB)\n이미지가 포함되어 있다면 이미지 크기를 줄이거나 외부 링크를 사용해 주세요.`);
+      return false;
+    }
+    return true;
+  };
 
   useEffect(() => {
     if (selectedItem) {
       document.body.style.overflow = 'hidden';
+      if (!isEditing) {
+        setEditTitle(selectedItem.title);
+        setEditContent(selectedItem.content);
+      }
     } else {
       document.body.style.overflow = 'unset';
+      setIsEditing(false);
     }
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [selectedItem]);
+  }, [selectedItem, isEditing]);
 
   useEffect(() => {
     const q = query(collection(db, 'curriculums'), orderBy('createdAt', 'desc'));
@@ -48,6 +68,7 @@ export default function CurriculumPage() {
 
   const handleAdd = async () => {
     if (!user || !title || !content) return;
+    if (!checkContentSize(content)) return;
     try {
       await addDoc(collection(db, 'curriculums'), {
         title,
@@ -68,8 +89,29 @@ export default function CurriculumPage() {
     if (!window.confirm('정말 삭제하시겠습니까?')) return;
     try {
       await deleteDoc(doc(db, 'curriculums', id));
+      if (selectedItem?.id === id) setSelectedItem(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `curriculums/${id}`);
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!selectedItem?.id || !editTitle || !editContent) return;
+    if (!checkContentSize(editContent)) return;
+    try {
+      await updateDoc(doc(db, 'curriculums', selectedItem.id), {
+        title: editTitle,
+        content: editContent,
+        updatedAt: serverTimestamp()
+      });
+      setIsEditing(false);
+      setSelectedItem({
+        ...selectedItem,
+        title: editTitle,
+        content: editContent
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `curriculums/${selectedItem.id}`);
     }
   };
 
@@ -81,7 +123,7 @@ export default function CurriculumPage() {
             AI 커리큘럼
             <span className="text-sm sm:text-xl text-slate-400 ml-2 font-medium">(AI Curriculum)</span>
           </h1>
-          <p className="mt-2 text-slate-500">최신 AI 기술 트렌드를 반영한 전문 교육 과정</p>
+          <p className="mt-2 text-slate-500">AI/SW 관련 교육 과정</p>
         </div>
         <AuthGuard>
           <button
@@ -202,14 +244,64 @@ export default function CurriculumPage() {
 
             {/* Modal Content */}
             <div className="flex-1 overflow-y-auto px-8 py-10">
-              <div 
-                className="prose prose-slate prose-lg max-w-none"
-                dangerouslySetInnerHTML={{ __html: selectedItem.content }}
-              />
+              {isEditing ? (
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">커리큘럼 제목</label>
+                    <input
+                      type="text"
+                      placeholder="커리큘럼 제목"
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">상세 내용</label>
+                    <Editor value={editContent} onChange={setEditContent} placeholder="커리큘럼 상세 내용을 작성해주세요..." />
+                  </div>
+                </div>
+              ) : (
+                <div 
+                  className="prose prose-slate prose-lg max-w-none"
+                  dangerouslySetInnerHTML={{ __html: selectedItem.content }}
+                />
+              )}
             </div>
 
             {/* Modal Footer */}
-            <div className="px-8 py-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+            <div className="px-8 py-4 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
+              <div className="flex gap-2">
+                {isAdmin && (
+                  <>
+                    {isEditing ? (
+                      <>
+                        <button 
+                          onClick={handleUpdate}
+                          className="flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors"
+                        >
+                          <Save className="w-4 h-4" />
+                          저장하기
+                        </button>
+                        <button 
+                          onClick={() => setIsEditing(false)}
+                          className="px-6 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors"
+                        >
+                          취소
+                        </button>
+                      </>
+                    ) : (
+                      <button 
+                        onClick={() => setIsEditing(true)}
+                        className="flex items-center gap-2 px-6 py-2 bg-white border border-slate-200 text-slate-900 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                        수정하기
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
               <button 
                 onClick={() => setSelectedItem(null)}
                 className="px-6 py-2 bg-slate-900 text-white rounded-xl text-sm font-medium hover:bg-slate-800 transition-colors"

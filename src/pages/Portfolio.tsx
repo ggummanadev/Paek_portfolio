@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { 
   collection, 
@@ -23,7 +23,8 @@ import {
   Layout as LayoutIcon,
   Edit2,
   X,
-  Save
+  Save,
+  Search
 } from 'lucide-react';
 import { PortfolioItem } from '../types';
 import { format } from 'date-fns';
@@ -40,6 +41,7 @@ export default function PortfolioPage() {
   const [isAdding, setIsAdding] = useState(false);
   const [editingItem, setEditingItem] = useState<PortfolioItem | null>(null);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Form states
   const [title, setTitle] = useState('');
@@ -143,6 +145,13 @@ export default function PortfolioPage() {
     setIsAdding(true);
   };
 
+  const filteredItems = useMemo(() => {
+    return items.filter(item => 
+      item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.description?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [items, searchTerm]);
+
   const getTypeIcon = (type: string) => {
     switch (type) {
       case 'youtube': return <Youtube className="w-5 h-5" />;
@@ -160,7 +169,7 @@ export default function PortfolioPage() {
             작품 소개
             <span className="text-sm sm:text-xl text-slate-400 ml-2 font-medium">(Portfolio)</span>
           </h1>
-          <p className="mt-2 text-slate-500">직접 개발한 웹앱, 앱, 유튜브 콘텐츠 및 웹사이트</p>
+          <p className="mt-2 text-slate-500">직접 개발한 디지털 콘텐츠</p>
         </div>
         <AuthGuard>
           <button
@@ -176,6 +185,20 @@ export default function PortfolioPage() {
             </span>
           </button>
         </AuthGuard>
+      </div>
+
+      {/* Search Bar */}
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <Search className="h-5 w-5 text-slate-400" />
+        </div>
+        <input
+          type="text"
+          placeholder="작품 제목이나 설명으로 검색..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="block w-full pl-10 pr-3 py-2 border border-slate-200 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-all"
+        />
       </div>
 
       {isAdding && (
@@ -252,13 +275,15 @@ export default function PortfolioPage() {
           <div className="col-span-full flex justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
           </div>
-        ) : items.length === 0 ? (
+        ) : filteredItems.length === 0 ? (
           <div className="col-span-full text-center py-24 bg-white rounded-2xl border border-dashed border-slate-300">
             <LayoutIcon className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-            <p className="text-slate-500">등록된 작품이 없습니다.</p>
+            <p className="text-slate-500">
+              {searchTerm ? '검색 결과가 없습니다.' : '등록된 작품이 없습니다.'}
+            </p>
           </div>
         ) : (
-          items.map((item) => (
+          filteredItems.map((item) => (
             <div key={item.id} className="group bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-xl transition-all flex flex-col">
               <div className="aspect-video bg-slate-100 relative overflow-hidden">
                 {item.thumbnail ? (
@@ -289,9 +314,16 @@ export default function PortfolioPage() {
               
               <div className="p-5 flex-1 flex flex-col">
                 <div className="flex justify-between items-start mb-2">
-                  <h3 className="text-lg font-bold text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-1">
-                    {item.title}
-                  </h3>
+                  <a 
+                    href={item.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex-1 mr-2"
+                  >
+                    <h3 className="text-lg font-bold text-slate-900 hover:text-indigo-600 transition-colors line-clamp-1">
+                      {item.title}
+                    </h3>
+                  </a>
                   <AuthGuard>
                     <div className="flex gap-1">
                       <button

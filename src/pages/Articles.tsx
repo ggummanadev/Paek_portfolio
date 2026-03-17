@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import Editor from '../components/Editor';
 import AuthGuard from '../components/AuthGuard';
-import { Plus, Trash2, Book, PenTool, ChevronRight, X } from 'lucide-react';
+import { Plus, Trash2, Book, PenTool, ChevronRight, X, Search } from 'lucide-react';
 import { Article } from '../types';
 import { format } from 'date-fns';
 import { clsx, type ClassValue } from 'clsx';
@@ -23,11 +23,22 @@ export default function ArticlesPage() {
   const [type, setType] = useState<'novel' | 'column'>('column');
   const [filter, setFilter] = useState<'all' | 'novel' | 'column'>('all');
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
   const [editType, setEditType] = useState<'novel' | 'column'>('column');
+
+  const checkContentSize = (content: string) => {
+    const size = new Blob([content]).size;
+    const limit = 1048576; // 1MB
+    if (size > limit) {
+      alert(`내용이 너무 큽니다. (현재: ${(size / 1024 / 1024).toFixed(2)}MB / 제한: 1MB)\n이미지가 포함되어 있다면 이미지 크기를 줄이거나 외부 링크를 사용해 주세요.`);
+      return false;
+    }
+    return true;
+  };
 
   useEffect(() => {
     if (selectedArticle) {
@@ -60,6 +71,7 @@ export default function ArticlesPage() {
 
   const handleAdd = async () => {
     if (!user || !title || !content) return;
+    if (!checkContentSize(content)) return;
     try {
       await addDoc(collection(db, 'articles'), {
         title,
@@ -88,6 +100,7 @@ export default function ArticlesPage() {
 
   const handleUpdate = async () => {
     if (!selectedArticle?.id || !editTitle || !editContent) return;
+    if (!checkContentSize(editContent)) return;
     try {
       const { updateDoc } = await import('firebase/firestore');
       await updateDoc(doc(db, 'articles', selectedArticle.id), {
@@ -108,7 +121,14 @@ export default function ArticlesPage() {
     }
   };
 
-  const filteredArticles = articles.filter(a => filter === 'all' || a.type === filter);
+  const filteredArticles = useMemo(() => {
+    return articles.filter(a => {
+      const matchesFilter = filter === 'all' || a.type === filter;
+      const matchesSearch = a.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           a.content.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesFilter && matchesSearch;
+    });
+  }, [articles, filter, searchTerm]);
 
   return (
     <div className="space-y-8">
@@ -118,7 +138,7 @@ export default function ArticlesPage() {
             소설 & 칼럼
             <span className="text-sm sm:text-xl text-slate-400 ml-2 font-medium">(Articles)</span>
           </h1>
-          <p className="mt-2 text-slate-500">창의적인 이야기와 전문적인 통찰이 담긴 글</p>
+          <p className="mt-2 text-slate-500">창작 소설과 칼럼</p>
         </div>
         <AuthGuard>
           <button
@@ -131,6 +151,20 @@ export default function ArticlesPage() {
             </span>
           </button>
         </AuthGuard>
+      </div>
+
+      {/* Search Bar */}
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <Search className="h-5 w-5 text-slate-400" />
+        </div>
+        <input
+          type="text"
+          placeholder="글 제목이나 내용으로 검색..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="block w-full pl-10 pr-3 py-2 border border-slate-200 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-all"
+        />
       </div>
 
       <div className="flex gap-2">
@@ -189,7 +223,9 @@ export default function ArticlesPage() {
         ) : filteredArticles.length === 0 ? (
           <div className="col-span-full text-center py-24 bg-white rounded-2xl border border-dashed border-slate-300">
             <PenTool className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-            <p className="text-slate-500">등록된 글이 없습니다.</p>
+            <p className="text-slate-500">
+              {searchTerm ? '검색 결과가 없습니다.' : '등록된 글이 없습니다.'}
+            </p>
           </div>
         ) : (
           filteredArticles.map((item) => (

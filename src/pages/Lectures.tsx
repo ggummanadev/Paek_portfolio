@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import Editor from '../components/Editor';
 import AuthGuard from '../components/AuthGuard';
-import { Plus, Trash2, Calendar, MapPin, History, X } from 'lucide-react';
+import { Plus, Trash2, Calendar, MapPin, History, X, Search } from 'lucide-react';
 import { Lecture } from '../types';
 import { format } from 'date-fns';
 
@@ -16,6 +16,17 @@ export default function LecturesPage() {
   const [content, setContent] = useState('');
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const checkContentSize = (content: string) => {
+    const size = new Blob([content]).size;
+    const limit = 1048576; // 1MB
+    if (size > limit) {
+      alert(`내용이 너무 큽니다. (현재: ${(size / 1024 / 1024).toFixed(2)}MB / 제한: 1MB)\n이미지가 포함되어 있다면 이미지 크기를 줄이거나 외부 링크를 사용해 주세요.`);
+      return false;
+    }
+    return true;
+  };
 
   useEffect(() => {
     const q = query(collection(db, 'lectures'), orderBy('date', 'desc'));
@@ -31,6 +42,7 @@ export default function LecturesPage() {
 
   const handleAdd = async () => {
     if (!user || !title || !content) return;
+    if (!checkContentSize(content)) return;
     try {
       await addDoc(collection(db, 'lectures'), {
         title,
@@ -57,6 +69,13 @@ export default function LecturesPage() {
     }
   };
 
+  const filteredLectures = useMemo(() => {
+    return lectures.filter(l => 
+      l.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      l.content.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [lectures, searchTerm]);
+
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-end border-b border-slate-200 pb-6">
@@ -65,7 +84,7 @@ export default function LecturesPage() {
             강의 이력
             <span className="text-sm sm:text-xl text-slate-400 ml-2 font-medium">(Lectures)</span>
           </h1>
-          <p className="mt-2 text-slate-500">지금까지 진행해온 다양한 교육 및 세미나 기록</p>
+          <p className="mt-2 text-slate-500">교육 및 세미나 이력</p>
         </div>
         <AuthGuard>
           <button
@@ -78,6 +97,20 @@ export default function LecturesPage() {
             </span>
           </button>
         </AuthGuard>
+      </div>
+
+      {/* Search Bar */}
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <Search className="h-5 w-5 text-slate-400" />
+        </div>
+        <input
+          type="text"
+          placeholder="강의 제목이나 내용으로 검색..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="block w-full pl-10 pr-3 py-2 border border-slate-200 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-all"
+        />
       </div>
 
       {isAdding && (
@@ -114,13 +147,15 @@ export default function LecturesPage() {
           <div className="flex justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
           </div>
-        ) : lectures.length === 0 ? (
+        ) : filteredLectures.length === 0 ? (
           <div className="text-center py-24 bg-white rounded-2xl border border-dashed border-slate-300 relative z-10">
             <History className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-            <p className="text-slate-500">등록된 강의 이력이 없습니다.</p>
+            <p className="text-slate-500">
+              {searchTerm ? '검색 결과가 없습니다.' : '등록된 강의 이력이 없습니다.'}
+            </p>
           </div>
         ) : (
-          lectures.map((item, index) => (
+          filteredLectures.map((item, index) => (
             <div key={item.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
               {/* Icon */}
               <div className="flex items-center justify-center w-10 h-10 rounded-full border border-white bg-slate-100 group-[.is-active]:bg-indigo-600 text-slate-500 group-[.is-active]:text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2">

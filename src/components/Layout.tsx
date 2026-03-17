@@ -12,7 +12,7 @@ import {
   LogIn,
   Menu,
   X,
-  Cpu,
+  Sparkles,
   Layout as LayoutIcon
 } from 'lucide-react';
 import { useState, ReactNode } from 'react';
@@ -69,16 +69,16 @@ export default function Layout({ children }: { children: ReactNode }) {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-2 shrink-0">
               <div className="p-2 bg-indigo-600 rounded-lg">
-                <Cpu className="w-6 h-6 text-white" />
+                <Sparkles className="w-6 h-6 text-white" />
               </div>
-              <span className="text-xl font-bold tracking-tight text-slate-900 hidden sm:block">
+              <span className="text-[22px] font-bold tracking-tight text-slate-900 hidden sm:block">
                 AI/SW 교육전문가
               </span>
             </div>
 
             {/* Mobile Title - Flex based to avoid overlap */}
             <div className="flex-1 flex justify-center md:hidden px-2 min-w-0">
-              <span className="text-[10px] font-bold tracking-tight text-slate-900 truncate">
+              <span className="text-[12px] font-bold tracking-tight text-slate-900 truncate">
                 AI/SW 교육전문가
               </span>
             </div>

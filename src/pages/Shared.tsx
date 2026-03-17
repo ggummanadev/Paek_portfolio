@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import AuthGuard from '../components/AuthGuard';
-import { Plus, Trash2, Share2, Youtube, Globe, ExternalLink, X } from 'lucide-react';
+import { Plus, Trash2, Share2, Youtube, Globe, ExternalLink, X, Search } from 'lucide-react';
 import { SharedLink } from '../types';
 import { format } from 'date-fns';
 
@@ -15,6 +15,7 @@ export default function SharedPage() {
   const [title, setTitle] = useState('');
   const [type, setType] = useState<'youtube' | 'article'>('youtube');
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     const q = query(collection(db, 'sharedLinks'), orderBy('createdAt', 'desc'));
@@ -80,6 +81,13 @@ export default function SharedPage() {
     }
   };
 
+  const filteredLinks = useMemo(() => {
+    return links.filter(link => 
+      link.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      link.url.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [links, searchTerm]);
+
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-end border-b border-slate-200 pb-6">
@@ -88,7 +96,7 @@ export default function SharedPage() {
             공유 자료
             <span className="text-sm sm:text-xl text-slate-400 ml-2 font-medium">(Shared Resources)</span>
           </h1>
-          <p className="mt-2 text-slate-500">유용한 유튜브 영상 및 최신 뉴스 기사 큐레이션</p>
+          <p className="mt-2 text-slate-500">유튜브 영상 및 최신 뉴스, 자료 등</p>
         </div>
         <AuthGuard>
           <button
@@ -101,6 +109,20 @@ export default function SharedPage() {
             </span>
           </button>
         </AuthGuard>
+      </div>
+
+      {/* Search Bar */}
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <Search className="h-5 w-5 text-slate-400" />
+        </div>
+        <input
+          type="text"
+          placeholder="자료 제목이나 URL로 검색..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="block w-full pl-10 pr-3 py-2 border border-slate-200 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-all"
+        />
       </div>
 
       {isAdding && (
@@ -145,13 +167,15 @@ export default function SharedPage() {
           <div className="col-span-full flex justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
           </div>
-        ) : links.length === 0 ? (
+        ) : filteredLinks.length === 0 ? (
           <div className="col-span-full text-center py-24 bg-white rounded-2xl border border-dashed border-slate-300">
             <Share2 className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-            <p className="text-slate-500">공유된 자료가 없습니다.</p>
+            <p className="text-slate-500">
+              {searchTerm ? '검색 결과가 없습니다.' : '공유된 자료가 없습니다.'}
+            </p>
           </div>
         ) : (
-          links.map((item) => (
+          filteredLinks.map((item) => (
             <div key={item.id} className="group bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg transition-all flex flex-col">
               <a 
                 href={item.url} 
