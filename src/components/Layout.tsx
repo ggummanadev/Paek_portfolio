@@ -34,9 +34,9 @@ export default function Layout({ children }: { children: ReactNode }) {
     { name: '강사 소개(Profile)', path: '/', icon: User },
     { name: 'AI 커리큘럼(Curriculum)', path: '/curriculum', icon: BookOpen },
     { name: '강의 이력(Lectures)', path: '/lectures', icon: History },
+    { name: '작품 소개(Portfolio)', path: '/portfolio', icon: LayoutIcon },
     { name: '소설 & 칼럼(Articles)', path: '/articles', icon: PenTool },
     { name: '공유 자료(Shared)', path: '/shared', icon: Share2 },
-    { name: '작품 소개(Portfolio)', path: '/portfolio', icon: LayoutIcon },
   ];
 
   const handleLogin = async () => {
@@ -55,9 +55,9 @@ export default function Layout({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans relative">
       {/* Background Image Overlay */}
       <div 
-        className="fixed inset-0 z-0 opacity-[0.03] pointer-events-none"
+        className="fixed inset-0 z-0 opacity-[0.05] pointer-events-none"
         style={{
-          backgroundImage: 'url("https://images.unsplash.com/photo-1677442136019-21780ecad995?q=80&w=2070&auto=format&fit=crop")',
+          backgroundImage: 'url("https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=2073&auto=format&fit=crop")',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         }}
@@ -67,11 +67,18 @@ export default function Layout({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <div className="p-2 bg-indigo-600 rounded-lg">
                 <Cpu className="w-6 h-6 text-white" />
               </div>
               <span className="text-xl font-bold tracking-tight text-slate-900 hidden sm:block">
+                AI/SW 교육전문가
+              </span>
+            </div>
+
+            {/* Mobile Title - Flex based to avoid overlap */}
+            <div className="flex-1 flex justify-center md:hidden px-2 min-w-0">
+              <span className="text-[10px] font-bold tracking-tight text-slate-900 truncate">
                 AI/SW 교육전문가
               </span>
             </div>
@@ -95,7 +102,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               ))}
             </nav>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 shrink-0">
               {user ? (
                 <div className="flex items-center gap-3">
                   <div className="hidden sm:block text-right">
@@ -154,7 +161,14 @@ export default function Layout({ children }: { children: ReactNode }) {
                 )}
               >
                 <item.icon className="w-5 h-5" />
-                {item.name}
+                <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-1">
+                  <span>{item.name.split('(')[0]}</span>
+                  {item.name.includes('(') && (
+                    <span className="text-[10px] sm:text-xs opacity-70">
+                      ({item.name.split('(')[1]}
+                    </span>
+                  )}
+                </div>
               </Link>
             ))}
           </div>

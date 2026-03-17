@@ -4,7 +4,7 @@ import { collection, query, orderBy, onSnapshot, addDoc, deleteDoc, doc, serverT
 import { useAuthState } from 'react-firebase-hooks/auth';
 import Editor from '../components/Editor';
 import AuthGuard from '../components/AuthGuard';
-import { Plus, Trash2, Calendar, MapPin, History } from 'lucide-react';
+import { Plus, Trash2, Calendar, MapPin, History, X } from 'lucide-react';
 import { Lecture } from '../types';
 import { format } from 'date-fns';
 
@@ -61,7 +61,10 @@ export default function LecturesPage() {
     <div className="space-y-8">
       <div className="flex justify-between items-end border-b border-slate-200 pb-6">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight text-slate-900">강의 이력(Lectures)</h1>
+          <h1 className="text-2xl sm:text-4xl font-bold tracking-tight text-slate-900">
+            강의 이력
+            <span className="text-sm sm:text-xl text-slate-400 ml-2 font-medium">(Lectures)</span>
+          </h1>
           <p className="mt-2 text-slate-500">지금까지 진행해온 다양한 교육 및 세미나 기록</p>
         </div>
         <AuthGuard>
@@ -69,12 +72,10 @@ export default function LecturesPage() {
             onClick={() => setIsAdding(!isAdding)}
             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
           >
-            {isAdding ? '취소하기' : (
-              <>
-                <Plus className="w-4 h-4" />
-                새 강의 기록 추가
-              </>
-            )}
+            {isAdding ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+            <span className="hidden sm:inline">
+              {isAdding ? '취소하기' : '새 강의 기록 추가'}
+            </span>
           </button>
         </AuthGuard>
       </div>

@@ -3,7 +3,7 @@ import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import AuthGuard from '../components/AuthGuard';
-import { Plus, Trash2, Share2, Youtube, Globe, ExternalLink } from 'lucide-react';
+import { Plus, Trash2, Share2, Youtube, Globe, ExternalLink, X } from 'lucide-react';
 import { SharedLink } from '../types';
 import { format } from 'date-fns';
 
@@ -84,7 +84,10 @@ export default function SharedPage() {
     <div className="space-y-8">
       <div className="flex justify-between items-end border-b border-slate-200 pb-6">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight text-slate-900">공유 자료(Shared Resources)</h1>
+          <h1 className="text-2xl sm:text-4xl font-bold tracking-tight text-slate-900">
+            공유 자료
+            <span className="text-sm sm:text-xl text-slate-400 ml-2 font-medium">(Shared Resources)</span>
+          </h1>
           <p className="mt-2 text-slate-500">유용한 유튜브 영상 및 최신 뉴스 기사 큐레이션</p>
         </div>
         <AuthGuard>
@@ -92,12 +95,10 @@ export default function SharedPage() {
             onClick={() => setIsAdding(!isAdding)}
             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
           >
-            {isAdding ? '취소하기' : (
-              <>
-                <Plus className="w-4 h-4" />
-                링크 추가
-              </>
-            )}
+            {isAdding ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+            <span className="hidden sm:inline">
+              {isAdding ? '취소하기' : '링크 추가'}
+            </span>
           </button>
         </AuthGuard>
       </div>

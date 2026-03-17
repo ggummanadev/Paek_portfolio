@@ -69,7 +69,10 @@ export default function Home() {
     <div className="space-y-8">
       <div className="flex justify-between items-end border-b border-slate-200 pb-6">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight text-slate-900">강사 소개(Instructor Profile)</h1>
+          <h1 className="text-2xl sm:text-4xl font-bold tracking-tight text-slate-900">
+            강사 소개
+            <span className="text-sm sm:text-xl text-slate-400 ml-2 font-medium">(Instructor Profile)</span>
+          </h1>
           <p className="mt-2 text-slate-500">PBL방식 AI,SW,Sci 교육 전문가</p>
         </div>
         <AuthGuard>
@@ -79,7 +82,7 @@ export default function Home() {
               className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
             >
               <Edit2 className="w-4 h-4" />
-              수정하기(Edit)
+              <span className="hidden sm:inline">수정하기(Edit)</span>
             </button>
           ) : (
             <button
@@ -87,7 +90,7 @@ export default function Home() {
               className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
             >
               <Save className="w-4 h-4" />
-              저장하기(Save)
+              <span className="hidden sm:inline">저장하기(Save)</span>
             </button>
           )}
         </AuthGuard>

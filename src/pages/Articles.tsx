@@ -114,7 +114,10 @@ export default function ArticlesPage() {
     <div className="space-y-8">
       <div className="flex justify-between items-end border-b border-slate-200 pb-6">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight text-slate-900">소설 & 칼럼(Articles)</h1>
+          <h1 className="text-2xl sm:text-4xl font-bold tracking-tight text-slate-900">
+            소설 & 칼럼
+            <span className="text-sm sm:text-xl text-slate-400 ml-2 font-medium">(Articles)</span>
+          </h1>
           <p className="mt-2 text-slate-500">창의적인 이야기와 전문적인 통찰이 담긴 글</p>
         </div>
         <AuthGuard>
@@ -122,12 +125,10 @@ export default function ArticlesPage() {
             onClick={() => setIsAdding(!isAdding)}
             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
           >
-            {isAdding ? '취소하기' : (
-              <>
-                <Plus className="w-4 h-4" />
-                새 글 작성
-              </>
-            )}
+            {isAdding ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+            <span className="hidden sm:inline">
+              {isAdding ? '취소하기' : '새 글 작성'}
+            </span>
           </button>
         </AuthGuard>
       </div>
