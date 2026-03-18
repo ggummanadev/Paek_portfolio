@@ -9,6 +9,7 @@ import { Edit2, Save, User as UserIcon } from 'lucide-react';
 export default function Home() {
   const [user] = useAuthState(auth);
   const [content, setContent] = useState('');
+  const [headline, setHeadline] = useState('PBL방식 AI,SW,Sci 교육 전문가');
   const [name, setName] = useState('Expert Instructor');
   const [specialty, setSpecialty] = useState('AI, SW Education, Web Design');
   const [experience, setExperience] = useState('20+ Years');
@@ -25,6 +26,7 @@ export default function Home() {
         if (docSnap.exists()) {
           const data = docSnap.data();
           setContent(data.content || '');
+          setHeadline(data.headline || 'PBL방식 AI,SW,Sci 교육 전문가');
           setName(data.name || 'Expert Instructor');
           setSpecialty(data.specialty || 'AI, SW Education, Web Design');
           setExperience(data.experience || '20+ Years');
@@ -44,6 +46,7 @@ export default function Home() {
     try {
       await setDoc(doc(db, 'profiles', 'main'), {
         content,
+        headline,
         name,
         specialty,
         experience,
@@ -73,7 +76,17 @@ export default function Home() {
             강사 소개
             <span className="text-sm sm:text-xl text-slate-400 ml-2 font-medium">(Instructor Profile)</span>
           </h1>
-          <p className="mt-2 text-slate-500">PBL방식 AI,SW,Sci 교육 전문가</p>
+          {isEditing ? (
+            <input 
+              type="text"
+              value={headline}
+              onChange={(e) => setHeadline(e.target.value)}
+              className="mt-2 w-full px-3 py-1.5 rounded border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+              placeholder="헤드라인(Headline)"
+            />
+          ) : (
+            <p className="mt-2 text-slate-500">{headline}</p>
+          )}
         </div>
         <AuthGuard>
           {!isEditing ? (
@@ -152,14 +165,15 @@ export default function Home() {
               <div>
                 <label className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">경력(Experience)</label>
                 {isEditing ? (
-                  <input 
-                    type="text" 
+                  <textarea 
                     value={experience} 
                     onChange={(e) => setExperience(e.target.value)}
-                    className="w-full mt-1 px-3 py-1.5 rounded border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                    rows={5}
+                    className="w-full mt-1 px-3 py-1.5 rounded border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                    placeholder="경력 사항을 입력하세요..."
                   />
                 ) : (
-                  <p className="text-slate-600">{experience}</p>
+                  <p className="text-slate-600 whitespace-pre-wrap">{experience}</p>
                 )}
               </div>
             </div>
