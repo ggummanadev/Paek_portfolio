@@ -6,6 +6,15 @@
   "display": "standalone",
   "background_color": "#F8FAFC",
   "theme_color": "#0284c7",
+  "share_target": {
+    "action": "/shared",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
   "icons": [
     {
       "src": "https://cdn-icons-png.flaticon.com/512/2103/2103633.png",

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
@@ -16,6 +17,41 @@ export default function SharedPage() {
   const [type, setType] = useState<'youtube' | 'article'>('youtube');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Handle incoming shared links from Web Share Target API
+    const sharedTitle = searchParams.get('title');
+    const sharedText = searchParams.get('text');
+    const sharedUrl = searchParams.get('url');
+
+    if (sharedTitle || sharedText || sharedUrl) {
+      let extractedUrl = sharedUrl || '';
+      
+      // Android share sheet often puts the URL in the 'text' field
+      if (!extractedUrl && sharedText) {
+        const urlMatch = sharedText.match(/https?:\/\/[^\s]+/);
+        if (urlMatch) {
+          extractedUrl = urlMatch[0];
+        }
+      }
+
+      let extractedTitle = sharedTitle || '';
+      if (!extractedTitle && sharedText && sharedText !== extractedUrl) {
+         extractedTitle = sharedText.replace(extractedUrl, '').trim();
+      }
+
+      if (extractedUrl || extractedTitle) {
+        setUrl(extractedUrl);
+        setTitle(extractedTitle);
+        setIsAdding(true);
+        
+        // Clear the URL parameters so it doesn't trigger again on refresh
+        navigate('/shared', { replace: true });
+      }
+    }
+  }, [searchParams, navigate]);
 
   useEffect(() => {
     const q = query(collection(db, 'sharedLinks'), orderBy('createdAt', 'desc'));
@@ -125,42 +161,44 @@ export default function SharedPage() {
         />
       </div>
 
-      {isAdding && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 animate-in fade-in slide-in-from-top-4">
-          <div className="grid grid-cols-1 gap-4">
-            <input
-              type="url"
-              placeholder="공유할 URL (유튜브 또는 기사)"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-            <input
-              type="text"
-              placeholder="제목 (선택사항)"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2 text-sm">
-                <input type="radio" checked={type === 'youtube'} onChange={() => setType('youtube')} /> 유튜브
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="radio" checked={type === 'article'} onChange={() => setType('article')} /> 기사/웹사이트
-              </label>
+      <AuthGuard>
+        {isAdding && (
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 animate-in fade-in slide-in-from-top-4">
+            <div className="grid grid-cols-1 gap-4">
+              <input
+                type="url"
+                placeholder="공유할 URL (유튜브 또는 기사)"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <input
+                type="text"
+                placeholder="제목 (선택사항)"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="radio" checked={type === 'youtube'} onChange={() => setType('youtube')} /> 유튜브
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="radio" checked={type === 'article'} onChange={() => setType('article')} /> 기사/웹사이트
+                </label>
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <button
+                onClick={handleAdd}
+                className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+              >
+                추가하기
+              </button>
             </div>
           </div>
-          <div className="flex justify-end">
-            <button
-              onClick={handleAdd}
-              className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
-            >
-              추가하기
-            </button>
-          </div>
-        </div>
-      )}
+        )}
+      </AuthGuard>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
