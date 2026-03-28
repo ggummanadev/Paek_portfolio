@@ -49,6 +49,7 @@ export default function PortfolioPage() {
   const [type, setType] = useState<'webapp' | 'googleplay' | 'youtube' | 'website'>('webapp');
   const [description, setDescription] = useState('');
   const [thumbnail, setThumbnail] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
 
   const isAdmin = user?.email === 'jabang78@gmail.com';
 
@@ -63,6 +64,52 @@ export default function PortfolioPage() {
     });
     return () => unsubscribe();
   }, []);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsUploading(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_SIZE = 800; // Resize to max 800x800
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        setThumbnail(dataUrl);
+        setIsUploading(false);
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = () => {
+      alert("이미지를 읽는 중 오류가 발생했습니다.");
+      setIsUploading(false);
+    };
+    reader.readAsDataURL(file);
+    
+    e.target.value = '';
+  };
 
   const resetForm = () => {
     setTitle('');
@@ -239,14 +286,35 @@ export default function PortfolioPage() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">썸네일 이미지 URL (선택사항)</label>
-            <input
-              type="url"
-              placeholder="이미지 주소 (유튜브는 자동 추출 가능)"
-              value={thumbnail}
-              onChange={(e) => setThumbnail(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">썸네일 이미지 (선택사항)</label>
+            <div className="flex items-center gap-4">
+              {thumbnail && (
+                <div className="relative w-20 h-20 rounded-lg overflow-hidden border border-slate-200 shrink-0">
+                  <img src={thumbnail} alt="Thumbnail preview" className="w-full h-full object-cover" />
+                  <button
+                    onClick={() => setThumbnail('')}
+                    className="absolute top-1 right-1 p-1 bg-black/50 rounded-full text-white hover:bg-black/70"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+              <div className="flex-1">
+                <label className="flex items-center justify-center w-full px-4 py-2 border-2 border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-colors">
+                  <span className="text-sm text-slate-500">
+                    {isUploading ? '업로드 중...' : '이미지 파일 선택'}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    disabled={isUploading}
+                  />
+                </label>
+                <p className="text-[10px] text-slate-400 mt-1">유튜브 링크 입력 시 자동으로 썸네일이 추출됩니다.</p>
+              </div>
+            </div>
           </div>
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">작품 설명</label>
