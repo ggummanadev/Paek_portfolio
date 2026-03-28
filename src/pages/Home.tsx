@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { db, auth, storage, handleFirestoreError, OperationType } from '../firebase';
+import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import Editor from '../components/Editor';
 import AuthGuard from '../components/AuthGuard';
@@ -62,22 +61,51 @@ export default function Home() {
     }
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
     setIsUploading(true);
-    try {
-      const storageRef = ref(storage, `profiles/${Date.now()}_${file.name}`);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
-      setPhotoUrl(url);
-    } catch (error) {
-      console.error("Error uploading image: ", error);
-      alert("이미지 업로드에 실패했습니다.");
-    } finally {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_SIZE = 400; // Resize to max 400x400 to keep Base64 string small
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        setPhotoUrl(dataUrl);
+        setIsUploading(false);
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = () => {
+      alert("이미지를 읽는 중 오류가 발생했습니다.");
       setIsUploading(false);
-    }
+    };
+    reader.readAsDataURL(file);
+    
+    // Reset input value so the same file can be selected again if needed
+    e.target.value = '';
   };
 
   if (loading) {
