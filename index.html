@@ -10,11 +10,31 @@
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="/src/main.tsx" onerror="if(!sessionStorage.getItem('reloaded')){sessionStorage.setItem('reloaded','true');window.location.reload(true);}"></script>
     <script>
+      // Unregister old service workers to fix the blank screen issue caused by stale caches
       if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for(let registration of registrations) {
+            registration.unregister();
+          }
+        });
+        
+        // Register the new service worker
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js');
+          navigator.serviceWorker.register('/sw.js').then(reg => {
+            reg.onupdatefound = () => {
+              const installingWorker = reg.installing;
+              if (installingWorker) {
+                installingWorker.onstatechange = () => {
+                  if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    // New update available, reload the page to get the new assets
+                    window.location.reload();
+                  }
+                };
+              }
+            };
+          });
         });
       }
     </script>
