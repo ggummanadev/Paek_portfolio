@@ -67,14 +67,18 @@ export default function Layout({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="p-2 bg-indigo-600 rounded-lg">
-                <Sparkles className="w-6 h-6 text-white" />
+            <Link to="/" className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity">
+              <div className="p-1.5 bg-indigo-50 rounded-lg">
+                <img 
+                  src="https://cdn-icons-png.flaticon.com/512/2103/2103633.png" 
+                  alt="App Icon" 
+                  className="w-7 h-7 object-contain"
+                />
               </div>
               <span className="text-[22px] font-bold tracking-tight text-slate-900 hidden sm:block">
                 AI/SW 교육전문가
               </span>
-            </div>
+            </Link>
 
             {/* Mobile Title - Flex based to avoid overlap */}
             <div className="flex-1 flex justify-center md:hidden px-2 min-w-0">

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { db, auth, handleFirestoreError, OperationType } from '../firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import AuthGuard from '../components/AuthGuard';
 import { Plus, Trash2, Share2, Youtube, Globe, ExternalLink, X, Search } from 'lucide-react';
@@ -78,21 +78,10 @@ export default function SharedPage() {
         detectedType = 'youtube';
         const videoId = ytMatch[1];
         thumbnail = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
-      } else if (detectedType === 'article') {
-        // For articles, we try to fetch metadata using a public API
-        try {
-          const res = await fetch(`https://api.microlink.io?url=${encodeURIComponent(url)}`);
-          const data = await res.json();
-          if (data.status === 'success') {
-            if (!finalTitle) finalTitle = data.data.title;
-            thumbnail = data.data.image?.url || data.data.logo?.url || '';
-          }
-        } catch (e) {
-          console.error('Metadata fetch failed', e);
-        }
       }
 
-      await addDoc(collection(db, 'sharedLinks'), {
+      // 1. Add document immediately
+      const docRef = await addDoc(collection(db, 'sharedLinks'), {
         url,
         title: finalTitle || url,
         thumbnail,
@@ -100,9 +89,32 @@ export default function SharedPage() {
         createdAt: serverTimestamp(),
         authorUid: user.uid
       });
+
+      // 2. Close modal and clear inputs immediately
       setIsAdding(false);
       setUrl('');
       setTitle('');
+
+      // 3. Fetch metadata in the background if it's an article
+      if (detectedType === 'article') {
+        try {
+          const res = await fetch(`https://api.microlink.io?url=${encodeURIComponent(url)}`);
+          const data = await res.json();
+          if (data.status === 'success') {
+            const fetchedTitle = data.data.title;
+            const fetchedThumbnail = data.data.image?.url || data.data.logo?.url || '';
+            
+            if (fetchedTitle || fetchedThumbnail) {
+              await updateDoc(docRef, {
+                title: finalTitle || fetchedTitle || url,
+                thumbnail: fetchedThumbnail
+              });
+            }
+          }
+        } catch (e) {
+          console.error('Metadata fetch failed', e);
+        }
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'sharedLinks');
     }

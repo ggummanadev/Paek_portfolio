@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { db, auth, handleFirestoreError, OperationType } from '../firebase';
+import { db, auth, storage, handleFirestoreError, OperationType } from '../firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import Editor from '../components/Editor';
 import AuthGuard from '../components/AuthGuard';
@@ -16,6 +17,7 @@ export default function Home() {
   const [photoUrl, setPhotoUrl] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
   const isAdmin = user?.email === 'jabang78@gmail.com';
 
   useEffect(() => {
@@ -57,6 +59,24 @@ export default function Home() {
       setIsEditing(false);
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'profiles/main');
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsUploading(true);
+    try {
+      const storageRef = ref(storage, `profiles/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      setPhotoUrl(url);
+    } catch (error) {
+      console.error("Error uploading image: ", error);
+      alert("이미지 업로드에 실패했습니다.");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -125,13 +145,16 @@ export default function Home() {
               )}
               {isEditing && (
                 <div className="absolute inset-0 bg-black/50 flex items-center justify-center p-4">
-                  <input 
-                    type="text" 
-                    placeholder="이미지 URL(Image URL)" 
-                    value={photoUrl}
-                    onChange={(e) => setPhotoUrl(e.target.value)}
-                    className="w-full text-xs p-2 rounded border-none focus:ring-0"
-                  />
+                  <label className="cursor-pointer text-white text-sm font-medium hover:text-indigo-200 transition-colors">
+                    {isUploading ? '업로드 중...' : '이미지 업로드'}
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      disabled={isUploading}
+                    />
+                  </label>
                 </div>
               )}
             </div>
