@@ -44,6 +44,7 @@ export interface SharedLink {
   description?: string;
   thumbnail?: string;
   type: 'youtube' | 'article';
+  keywords?: string[];
   createdAt: any;
   authorUid: string;
 }

@@ -8,17 +8,80 @@ import { Plus, Trash2, Share2, Youtube, Globe, ExternalLink, X, Search } from 'l
 import { SharedLink } from '../types';
 import { format } from 'date-fns';
 
+// Extract keywords function for automated SEO insertion
+export function extractKeywords(title: string): string[] {
+  if (!title) return [];
+  const cleaned = title.replace(/[^\w\sㄱ-ㅎㅏ-ㅣ가-힣]/g, ' ');
+  const words = cleaned.split(/\s+/);
+  const noise = new Set([
+    '위한', '그리고', '또는', '하는', '에서', '으로', '있다', '없다', '대한', '통한', '함께', '함께하는',
+    '방법', '소개', '추천', '관한', '기반', '활용', '이용', '관련', '모음', '정리', '공유', '자료', '뉴스',
+    '이유', '어떻게', '무엇', '쉬운', '만들기', '하는법', '하는방법', '하기', '하는', '한다', '했다', '입니다'
+  ]);
+  
+  const keywords = words
+    .map(w => w.trim())
+    .filter(w => {
+      const lower = w.toLowerCase();
+      if (lower.length < 2) {
+        return ['ai', 'sw', 'it', 'vr', 'ar'].includes(lower);
+      }
+      return !noise.has(w) && !/^\d+$/.test(w);
+    });
+    
+  return Array.from(new Set(keywords));
+}
+
 export default function SharedPage() {
   const [user] = useAuthState(auth);
   const [links, setLinks] = useState<SharedLink[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
+  const [keywordsInput, setKeywordsInput] = useState('');
   const [type, setType] = useState<'youtube' | 'article'>('youtube');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  // Dynamic SEO keywords metadata update
+  useEffect(() => {
+    if (links.length > 0) {
+      const allExtractedKeywords: string[] = [];
+      links.forEach((link) => {
+        const kw = link.keywords && link.keywords.length > 0 
+          ? link.keywords 
+          : extractKeywords(link.title || '');
+        allExtractedKeywords.push(...kw);
+      });
+
+      const uniqueNewKeywords = Array.from(new Set(allExtractedKeywords))
+        .filter(k => k.length >= 2)
+        .slice(0, 35);
+
+      const baseKeywords = [
+        "꿈만아", "꿈만아 강사", "꿈만아 포트폴리오", "AI전문강사", "충북 AI강사", 
+        "AISW 강사", "AI윤리", "AI안전", "AI바이브코딩 강사", "바이브코딩 강사", "AI실무 강사"
+      ];
+
+      const mergedKeywords = Array.from(new Set([...baseKeywords, ...uniqueNewKeywords]));
+
+      const metaKeywords = document.querySelector('meta[name="keywords"]');
+      if (metaKeywords) {
+        metaKeywords.setAttribute('content', mergedKeywords.join(', '));
+      }
+
+      const metaDesc = document.querySelector('meta[name="description"]');
+      if (metaDesc) {
+        const defaultDesc = "PBL(프로젝트 기반 학습) 방식의 AI, SW, 과학 교육 전문강사 꿈만아의 공식 포트폴리오입니다.";
+        const keywordSnippet = uniqueNewKeywords.slice(0, 6).join(', ');
+        if (keywordSnippet) {
+          metaDesc.setAttribute('content', `${defaultDesc} 공유 자료 키워드: ${keywordSnippet} 등 최신자료를 제공합니다.`);
+        }
+      }
+    }
+  }, [links]);
 
   useEffect(() => {
     // Handle incoming shared links from Web Share Target API
@@ -80,12 +143,26 @@ export default function SharedPage() {
         thumbnail = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
       }
 
+      // Extract keywords
+      let linkKeywords: string[] = [];
+      if (keywordsInput.trim()) {
+        linkKeywords = keywordsInput
+          .split(',')
+          .map(k => k.trim())
+          .filter(k => k.length > 0);
+      } else if (finalTitle) {
+        linkKeywords = extractKeywords(finalTitle);
+      } else {
+        linkKeywords = extractKeywords(url);
+      }
+
       // 1. Add document immediately
       const docRef = await addDoc(collection(db, 'sharedLinks'), {
         url,
         title: finalTitle || url,
         thumbnail,
         type: detectedType,
+        keywords: linkKeywords,
         createdAt: serverTimestamp(),
         authorUid: user.uid
       });
@@ -94,6 +171,7 @@ export default function SharedPage() {
       setIsAdding(false);
       setUrl('');
       setTitle('');
+      setKeywordsInput('');
 
       // 3. Fetch metadata in the background if it's an article
       if (detectedType === 'article') {
@@ -105,10 +183,17 @@ export default function SharedPage() {
             const fetchedThumbnail = data.data.image?.url || data.data.logo?.url || '';
             
             if (fetchedTitle || fetchedThumbnail) {
-              await updateDoc(docRef, {
+              const updatedFields: any = {
                 title: finalTitle || fetchedTitle || url,
                 thumbnail: fetchedThumbnail
-              });
+              };
+
+              // Automatically extract keywords from fetched title if user didn't enter custom ones
+              if (!keywordsInput.trim()) {
+                updatedFields.keywords = extractKeywords(finalTitle || fetchedTitle || url);
+              }
+
+              await updateDoc(docRef, updatedFields);
             }
           }
         } catch (e) {
@@ -182,28 +267,35 @@ export default function SharedPage() {
                 placeholder="공유할 URL (유튜브 또는 기사)"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
               />
               <input
                 type="text"
                 placeholder="제목 (선택사항)"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+              />
+              <input
+                type="text"
+                placeholder="검색 키워드/태그 (선택사항, 쉼표로 구분. 예: AI안전, 바이브코딩, 교육)"
+                value={keywordsInput}
+                onChange={(e) => setKeywordsInput(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
               />
               <div className="flex gap-4">
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="radio" checked={type === 'youtube'} onChange={() => setType('youtube')} /> 유튜브
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input type="radio" checked={type === 'youtube'} onChange={() => setType('youtube')} className="text-indigo-600 focus:ring-indigo-500" /> 유튜브
                 </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="radio" checked={type === 'article'} onChange={() => setType('article')} /> 기사/웹사이트
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input type="radio" checked={type === 'article'} onChange={() => setType('article')} className="text-indigo-600 focus:ring-indigo-500" /> 기사/웹사이트
                 </label>
               </div>
             </div>
             <div className="flex justify-end">
               <button
                 onClick={handleAdd}
-                className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+                className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm"
               >
                 추가하기
               </button>
@@ -272,7 +364,7 @@ export default function SharedPage() {
                     </button>
                   </AuthGuard>
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 mb-4 line-clamp-2 flex-1">
+                <h3 className="text-lg font-bold text-slate-900 mb-2 line-clamp-2">
                   <a 
                     href={item.url} 
                     target="_blank" 
@@ -282,6 +374,28 @@ export default function SharedPage() {
                     {item.title}
                   </a>
                 </h3>
+
+                {/* Keywords list for visual indexing and easy search filtration */}
+                {((item.keywords && item.keywords.length > 0) || extractKeywords(item.title || '').length > 0) && (
+                  <div className="flex flex-wrap gap-1 mb-4 flex-1 align-start content-start">
+                    {(item.keywords && item.keywords.length > 0 
+                      ? item.keywords 
+                      : extractKeywords(item.title || '')
+                    ).slice(0, 6).map((kw, i) => (
+                      <span 
+                        key={i} 
+                        className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-50 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 transition-colors cursor-pointer border border-slate-100"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setSearchTerm(kw);
+                        }}
+                      >
+                        #{kw}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
                 <div className="flex justify-between items-center mt-auto pt-4 border-t border-slate-50">
                   <span className="text-xs text-slate-400">
                     {item.createdAt?.toDate ? format(item.createdAt.toDate(), 'yyyy.MM.dd') : '방금 전'}
