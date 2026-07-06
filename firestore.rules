@@ -51,6 +51,13 @@ service cloud.firestore {
     // Rules
     // ===============================================================
 
+    // ===============================================================
+    // Global Safety Net (Default Deny Catch-all)
+    // ===============================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
     match /users/{userId} {
       allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
       allow write: if isAdmin();
