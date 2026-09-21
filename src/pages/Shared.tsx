@@ -8,6 +8,49 @@ import { Plus, Trash2, Share2, Youtube, Globe, ExternalLink, X, Search } from 'l
 import { SharedLink } from '../types';
 import { format } from 'date-fns';
 
+// Extract YouTube video ID from various sources including clipdown.net
+export function extractYoutubeVideoId(inputUrl: string): string | null {
+  if (!inputUrl) return null;
+  const trimmed = inputUrl.trim();
+
+  // 1. ClipDown format: e.g. https://www.clipdown.net/view/youtube/72rJKQ2a6Ak/
+  const clipdownMatch = trimmed.match(/clipdown\.(?:net|co\.kr)\/(?:(?:view|share)\/)?youtube\/([a-zA-Z0-9_-]+)/i);
+  if (clipdownMatch && clipdownMatch[1]) {
+    return clipdownMatch[1].replace(/[^a-zA-Z0-9_-]/g, '');
+  }
+
+  // 2. ClipDown query/general format: e.g. clipdown.net/?...v=72rJKQ2a6Ak
+  const clipdownQuery = trimmed.match(/clipdown\.(?:net|co\.kr).*?[?&]v=([a-zA-Z0-9_-]+)/i);
+  if (clipdownQuery && clipdownQuery[1]) {
+    return clipdownQuery[1].replace(/[^a-zA-Z0-9_-]/g, '');
+  }
+
+  // 3. Standard YouTube formats (watch?v=, youtu.be/, shorts/, embed/, live/)
+  const ytMatch = trimmed.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?.*?v=|shorts\/|live\/|embed\/))([a-zA-Z0-9_-]+)/i);
+  if (ytMatch && ytMatch[1]) {
+    return ytMatch[1].replace(/[^a-zA-Z0-9_-]/g, '');
+  }
+
+  return null;
+}
+
+// Convert input URL to clean YouTube URL if it's a ClipDown or YouTube link
+export function transformToYoutubeUrl(rawUrl: string): { url: string; isYoutube: boolean; videoId?: string } {
+  if (!rawUrl) return { url: rawUrl, isYoutube: false };
+  const trimmed = rawUrl.trim();
+  const videoId = extractYoutubeVideoId(trimmed);
+
+  if (videoId) {
+    return {
+      url: `https://www.youtube.com/watch?v=${videoId}`,
+      isYoutube: true,
+      videoId,
+    };
+  }
+
+  return { url: trimmed, isYoutube: false };
+}
+
 // Extract keywords function for automated SEO insertion
 export function extractKeywords(title: string): string[] {
   if (!title) return [];
@@ -106,7 +149,11 @@ export default function SharedPage() {
       }
 
       if (extractedUrl || extractedTitle) {
-        setUrl(extractedUrl);
+        const transformed = transformToYoutubeUrl(extractedUrl);
+        setUrl(transformed.url);
+        if (transformed.isYoutube) {
+          setType('youtube');
+        }
         setTitle(extractedTitle);
         setIsAdding(true);
         
@@ -128,19 +175,29 @@ export default function SharedPage() {
     return () => unsubscribe();
   }, []);
 
+  const handleUrlChange = (value: string) => {
+    const transformed = transformToYoutubeUrl(value);
+    if (transformed.isYoutube) {
+      setUrl(transformed.url);
+      setType('youtube');
+    } else {
+      setUrl(value);
+    }
+  };
+
   const handleAdd = async () => {
     if (!user || !url) return;
     try {
-      let detectedType = type;
+      const transformed = transformToYoutubeUrl(url);
+      const targetUrl = transformed.url;
+      let detectedType = transformed.isYoutube ? 'youtube' : type;
       let thumbnail = '';
       let finalTitle = title;
 
       // YouTube detection and thumbnail
-      const ytMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([^& \n<]+)/);
-      if (ytMatch) {
+      if (transformed.isYoutube && transformed.videoId) {
         detectedType = 'youtube';
-        const videoId = ytMatch[1];
-        thumbnail = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+        thumbnail = `https://img.youtube.com/vi/${transformed.videoId}/maxresdefault.jpg`;
       }
 
       // Extract keywords
@@ -153,13 +210,13 @@ export default function SharedPage() {
       } else if (finalTitle) {
         linkKeywords = extractKeywords(finalTitle);
       } else {
-        linkKeywords = extractKeywords(url);
+        linkKeywords = extractKeywords(targetUrl);
       }
 
       // 1. Add document immediately
       const docRef = await addDoc(collection(db, 'sharedLinks'), {
-        url,
-        title: finalTitle || url,
+        url: targetUrl,
+        title: finalTitle || targetUrl,
         thumbnail,
         type: detectedType,
         keywords: linkKeywords,
@@ -176,7 +233,7 @@ export default function SharedPage() {
       // 3. Fetch metadata in the background if it's an article
       if (detectedType === 'article') {
         try {
-          const res = await fetch(`https://api.microlink.io?url=${encodeURIComponent(url)}`);
+          const res = await fetch(`https://api.microlink.io?url=${encodeURIComponent(targetUrl)}`);
           const data = await res.json();
           if (data.status === 'success') {
             const fetchedTitle = data.data.title;
@@ -184,13 +241,13 @@ export default function SharedPage() {
             
             if (fetchedTitle || fetchedThumbnail) {
               const updatedFields: any = {
-                title: finalTitle || fetchedTitle || url,
+                title: finalTitle || fetchedTitle || targetUrl,
                 thumbnail: fetchedThumbnail
               };
 
               // Automatically extract keywords from fetched title if user didn't enter custom ones
               if (!keywordsInput.trim()) {
-                updatedFields.keywords = extractKeywords(finalTitle || fetchedTitle || url);
+                updatedFields.keywords = extractKeywords(finalTitle || fetchedTitle || targetUrl);
               }
 
               await updateDoc(docRef, updatedFields);
@@ -262,13 +319,31 @@ export default function SharedPage() {
         {isAdding && (
           <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 animate-in fade-in slide-in-from-top-4">
             <div className="grid grid-cols-1 gap-4">
-              <input
-                type="url"
-                placeholder="공유할 URL (유튜브 또는 기사)"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-              />
+              <div>
+                <input
+                  type="url"
+                  placeholder="공유할 URL (유튜브, 클립다운, 기사 등)"
+                  value={url}
+                  onChange={(e) => handleUrlChange(e.target.value)}
+                  onPaste={(e) => {
+                    const pasted = e.clipboardData.getData('text');
+                    if (pasted) {
+                      const transformed = transformToYoutubeUrl(pasted);
+                      if (transformed.isYoutube) {
+                        e.preventDefault();
+                        setUrl(transformed.url);
+                        setType('youtube');
+                      }
+                    }
+                  }}
+                  className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                />
+                {extractYoutubeVideoId(url) && (
+                  <p className="mt-1.5 text-xs text-emerald-600 font-medium flex items-center gap-1">
+                    ✓ 유튜브 영상 주소로 자동 변환되었습니다.
+                  </p>
+                )}
+              </div>
               <input
                 type="text"
                 placeholder="제목 (선택사항)"
@@ -317,63 +392,69 @@ export default function SharedPage() {
             </p>
           </div>
         ) : (
-          filteredLinks.map((item) => (
-            <div key={item.id} className="group bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg transition-all flex flex-col">
-              <a 
-                href={item.url} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="aspect-video bg-slate-100 flex items-center justify-center relative overflow-hidden block"
-              >
-                {item.thumbnail ? (
-                  <img 
-                    src={item.thumbnail} 
-                    alt={item.title}
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                ) : item.type === 'youtube' ? (
-                  <div className="absolute inset-0 flex items-center justify-center bg-red-50">
-                    <Youtube className="w-12 h-12 text-red-600" />
+          filteredLinks.map((item) => {
+            const transformed = transformToYoutubeUrl(item.url);
+            const displayUrl = transformed.isYoutube ? transformed.url : item.url;
+            const isYoutube = item.type === 'youtube' || transformed.isYoutube;
+            const displayThumbnail = item.thumbnail || (transformed.videoId ? `https://img.youtube.com/vi/${transformed.videoId}/maxresdefault.jpg` : '');
+
+            return (
+              <div key={item.id} className="group bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg transition-all flex flex-col">
+                <a 
+                  href={displayUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="aspect-video bg-slate-100 flex items-center justify-center relative overflow-hidden block"
+                >
+                  {displayThumbnail ? (
+                    <img 
+                      src={displayThumbnail} 
+                      alt={item.title}
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  ) : isYoutube ? (
+                    <div className="absolute inset-0 flex items-center justify-center bg-red-50">
+                      <Youtube className="w-12 h-12 text-red-600" />
+                    </div>
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center bg-indigo-50">
+                      <Globe className="w-12 h-12 text-indigo-600" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all transform scale-90 group-hover:scale-100">
+                      <ExternalLink className="w-5 h-5 text-slate-900" />
+                    </div>
                   </div>
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center bg-indigo-50">
-                    <Globe className="w-12 h-12 text-indigo-600" />
+                </a>
+                <div className="p-5 flex-1 flex flex-col">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                      {isYoutube ? 'YouTube' : 'Article'}
+                    </span>
+                    <AuthGuard>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          item.id && handleDelete(item.id);
+                        }}
+                        className="p-1 text-slate-300 hover:text-red-600 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </AuthGuard>
                   </div>
-                )}
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                  <div className="w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all transform scale-90 group-hover:scale-100">
-                    <ExternalLink className="w-5 h-5 text-slate-900" />
-                  </div>
-                </div>
-              </a>
-              <div className="p-5 flex-1 flex flex-col">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                    {item.type === 'youtube' ? 'YouTube' : 'Article'}
-                  </span>
-                  <AuthGuard>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        item.id && handleDelete(item.id);
-                      }}
-                      className="p-1 text-slate-300 hover:text-red-600 transition-colors"
+                  <h3 className="text-lg font-bold text-slate-900 mb-2 line-clamp-2">
+                    <a 
+                      href={displayUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="hover:text-indigo-600 transition-colors"
                     >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </AuthGuard>
-                </div>
-                <h3 className="text-lg font-bold text-slate-900 mb-2 line-clamp-2">
-                  <a 
-                    href={item.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="hover:text-indigo-600 transition-colors"
-                  >
-                    {item.title}
-                  </a>
-                </h3>
+                      {item.title}
+                    </a>
+                  </h3>
 
                 {/* Keywords list for visual indexing and easy search filtration */}
                 {((item.keywords && item.keywords.length > 0) || extractKeywords(item.title || '').length > 0) && (
@@ -401,7 +482,7 @@ export default function SharedPage() {
                     {item.createdAt?.toDate ? format(item.createdAt.toDate(), 'yyyy.MM.dd') : '방금 전'}
                   </span>
                   <a
-                    href={item.url}
+                    href={displayUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
@@ -411,7 +492,8 @@ export default function SharedPage() {
                 </div>
               </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>
